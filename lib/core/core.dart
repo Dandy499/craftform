@@ -1,0 +1,3 @@
+class Core {
+  void init() {}
+}
