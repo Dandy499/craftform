@@ -18,13 +18,16 @@ class AppDb {
 
   Future<Database> open() async {
     if (_db != null) return _db!;
-    final docsDir = await getApplicationDocumentsDirectory();
-    final dbPath = p.join(docsDir.path, 'craftform.db');
+    final docs = await getApplicationDocumentsDirectory();
+    final dbPath = p.join(docs.path, 'craftform.db');
 
     _db = await openDatabase(
       dbPath,
       version: 1,
-      onCreate: (db, version) async {
+      onConfigure: (db) async {
+        await db.execute('PRAGMA foreign_keys = ON');
+      },
+      onCreate: (db, v) async {
         await db.execute('''
           CREATE TABLE projects (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,7 +35,6 @@ class AppDb {
             created_at TEXT NOT NULL
           )
         ''');
-
         await db.execute('''
           CREATE TABLE pages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,7 +44,6 @@ class AppDb {
             FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
           )
         ''');
-
         await db.execute('''
           CREATE TABLE assets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

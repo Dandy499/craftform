@@ -2,6 +2,7 @@
 import '../../core/db/app_db.dart';
 import 'data/project_dao.dart';
 import 'data/project_model.dart';
+import '../dashboard/dashboard_screen.dart';
 
 class ProjectsHome extends StatefulWidget {
   const ProjectsHome({super.key});
@@ -33,24 +34,18 @@ class _ProjectsHomeState extends State<ProjectsHome> {
   }
 
   Future<void> _createProject() async {
-    final controller = TextField(controller: TextEditingController());
-    final textCtrl = (controller.controller as TextEditingController);
-
+    final ctrl = TextEditingController();
     final name = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (c) => AlertDialog(
         title: const Text('New Project'),
-        content: controller,
+        content: TextField(controller: ctrl, autofocus: true, decoration: const InputDecoration(hintText: 'Project name')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, textCtrl.text.trim()),
-            child: const Text('Create'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(c, ctrl.text.trim()), child: const Text('Create')),
         ],
       ),
     );
-
     if (name == null || name.isEmpty) return;
     await _dao.insert(Project(name: name, createdAt: DateTime.now()));
     await _loadProjects();
@@ -58,21 +53,29 @@ class _ProjectsHomeState extends State<ProjectsHome> {
 
   Future<void> _deleteProject(Project p) async {
     if (p.id == null) return;
-    final confirm = await showDialog<bool>(
+    final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (c) => AlertDialog(
         title: const Text('Delete project?'),
         content: Text('This will remove ${p.name}.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton.tonal(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          FilledButton.tonal(onPressed: () => Navigator.pop(c, true), child: const Text('Delete')),
         ],
       ),
     );
-    if (confirm == true) {
+    if (ok == true) {
       await _dao.remove(p.id!);
       await _loadProjects();
     }
+  }
+
+  void _open(Project p) {
+    if (p.id == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => DashboardScreen(projectId: p.id!, projectName: p.name)),
+    );
   }
 
   @override
@@ -87,11 +90,12 @@ class _ProjectsHomeState extends State<ProjectsHome> {
                 crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.2,
               ),
               itemCount: _projects.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) return _AddProjectCard(onTap: _createProject);
-                final project = _projects[index - 1];
+              itemBuilder: (context, i) {
+                if (i == 0) return _AddProjectCard(onTap: _createProject);
+                final project = _projects[i - 1];
                 return _ProjectCard(
                   name: project.name,
+                  onTap: () => _open(project),
                   onLongPress: () => _deleteProject(project),
                 );
               },
@@ -125,11 +129,13 @@ class _AddProjectCard extends StatelessWidget {
 
 class _ProjectCard extends StatelessWidget {
   final String name;
+  final VoidCallback? onTap;
   final VoidCallback? onLongPress;
-  const _ProjectCard({required this.name, this.onLongPress});
+  const _ProjectCard({required this.name, this.onTap, this.onLongPress});
   @override
   Widget build(BuildContext context) {
     return InkWell(
+      onTap: onTap,
       onLongPress: onLongPress,
       child: DecoratedBox(
         decoration: BoxDecoration(
